@@ -95,7 +95,11 @@ async function initVideoCall() {
     await ensureDependencies();
 
     // Get Local Stream
-    await getLocalStream();
+    try {
+      await getLocalStream();
+    } catch (err) {
+      console.warn('Could not get local stream, proceeding to connect anyway:', err);
+    }
 
     // Setup Preview
     setupPreview();
@@ -318,6 +322,13 @@ async function handleRoomJoined(data) {
 function handleUserJoined(data) {
     console.log('User joined:', data.userName);
     showNotification(`${data.userName} joined the call`, 'info');
+    
+    // Update waiting text to show connection is in progress
+    const waitingOverlay = document.getElementById('waitingOverlay');
+    if (waitingOverlay) {
+        const textEl = waitingOverlay.querySelector('h5, p, div');
+        if (textEl) textEl.textContent = `${data.userName} joined. Connecting...`;
+    }
     // We wait for their offer
 }
 
