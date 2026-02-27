@@ -144,7 +144,7 @@ async function loadDoctorDashboard() {
       } else {
         scheduleList.innerHTML = appointments.map(apt => `
           <tr>
-            <td>${formattient_name || 'Patient'}</td>
+            <td>${apt.patient_name || 'Patient'}</td>
             <td>Video Consultation</td>
             <td><span class="badge bg-${getStatusColor(apt.status)}">${apt.status}</span></td>
             <td>

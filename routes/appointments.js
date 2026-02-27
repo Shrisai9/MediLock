@@ -28,7 +28,10 @@ router.post('/', authenticate, [
 
     const { doctorId, appointmentDate, symptoms, durationMinutes = 30 } = req.body;
     
-    console.log('Creating appointment:', { doctorId, appointmentDate, userId: req.user.id, role: req.user.role });
+    // Convert ISO date to MySQL format (YYYY-MM-DD HH:mm:ss)
+    const formattedDate = new Date(appointmentDate).toISOString().slice(0, 19).replace('T', ' ');
+
+    console.log('Creating appointment:', { doctorId, appointmentDate: formattedDate, userId: req.user.id, role: req.user.role });
 
     // Get patient ID - Check both patients table and users table
     let patient = await db.getOne('SELECT id FROM patients WHERE user_id = ?', [req.user.id]);
@@ -62,7 +65,7 @@ router.post('/', authenticate, [
       `INSERT INTO appointments 
         (patient_id, doctor_id, appointment_date, duration_minutes, room_id, room_password, encryption_key_hash, symptoms) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [patient.id, doctorId, appointmentDate, durationMinutes, roomId, roomPassword, encryptionKeyHash, symptoms || null]
+      [patient.id, doctorId, formattedDate, durationMinutes, roomId, roomPassword, encryptionKeyHash, symptoms || null]
     );
 
     // Get appointment details
