@@ -4,9 +4,8 @@
  */
 
 // Global variables
+let peer = null;
 let socket = null;
-let peers = {}; // Store peer connections: { socketId: RTCPeerConnection }
-let iceCandidateQueue = {}; // Store early ICE candidates: { socketId: [candidate, ...] }
 let localStream = null;
 let remoteStream = null;
 let dataChannel = null;
@@ -122,6 +121,9 @@ async function initVideoCall() {
         showNotification('Camera access failed: ' + err.message, 'warning');
       }
     }
+    
+    // 2. Setup preview
+    setupPreview();
     
     // 3. Show setup modal
     const setupModalEl = document.getElementById('setupModal');
@@ -340,8 +342,34 @@ async function handleRoomJoined(data) {
   // If there are participants, create call to each
   if (data.participants && data.participants.length > 0) {
     for (const participant of data.participants) {
-      console.log('Initiating connection to:', participant.userName);
-      createPeerConnection(participant.socketId, true); // true = initiator
+      // Only call if they have a peerId registered
+      if (participant.peerId) {
+        console.log('Calling existing participant:', participant.peerId);
+        
+        try {
+          const call = peer.call(participant.peerId, localStream);
+          
+          call.on('stream', (stream) => {
+            console.log('Received remote stream from', participant.userName);
+            const remoteVideo = document.getElementById('remoteVideo');
+            remoteVideo.srcObject = stream;
+            remoteStream = stream;
+            remoteVideo.play().catch(e => console.log('Play blocked'));
+            const waitingOverlay = document.getElementById('waitingOverlay');
+            if (waitingOverlay) waitingOverlay.style.display = 'none';
+          });
+          
+          call.on('close', () => {
+            console.log('Call closed');
+          });
+          
+          call.on('error', (err) => {
+            console.error('Outgoing call error:', err);
+          });
+        } catch (e) {
+          console.error('Error calling participant:', e);
+        }
+      }
     }
   } else {
     console.log('No participants in room yet, waiting...');
@@ -356,8 +384,7 @@ async function handleUserJoined(data) {
   const waitingOverlay = document.getElementById('waitingOverlay');
   if (waitingOverlay) waitingOverlay.style.display = 'none';
   
-  // We don't need to create an offer here. 
-  // The new user (initiator) will send us an offer via handleOffer.
+  // DO NOT call here using socketId. Wait for 'peer-registered' event.
   
   showNotification(`${data.userName} joined the call`, 'info');
 }
@@ -367,10 +394,7 @@ function handleUserLeft(data) {
   console.log('User left:', data.userName);
   
   // Remove from peer ID map
-  if (peers[data.socketId]) {
-    peers[data.socketId].close();
-    delete peers[data.socketId];
-  }
+  peerIdMap.delete(data.socketId);
   
   // Only show waiting overlay if no remote stream
   if (!remoteStream) {
@@ -384,70 +408,16 @@ function handleUserLeft(data) {
 // Handle WebRTC offer
 async function handleOffer(data) {
   console.log('Received offer from:', data.socketId);
-  
-  // Create PC if not exists (receiver side)
-  let pc = peers[data.socketId];
-  if (!pc) {
-    pc = createPeerConnection(data.socketId, false);
-  }
-
-  try {
-    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    
-    // Process queued ICE candidates
-    if (iceCandidateQueue[data.socketId]) {
-      console.log(`Processing ${iceCandidateQueue[data.socketId].length} queued ICE candidates for ${data.socketId}`);
-      for (const candidate of iceCandidateQueue[data.socketId]) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-      delete iceCandidateQueue[data.socketId];
-    }
-    
-    socket.emit('answer', {
-      roomId: roomId,
-      answer: pc.localDescription,
-      targetSocketId: data.socketId
-    });
-  } catch (e) {
-    console.error('Error handling offer:', e);
-  }
 }
 
 // Handle WebRTC answer
 async function handleAnswer(data) {
   console.log('Received answer from:', data.socketId);
-  const pc = peers[data.socketId];
-  if (pc) {
-    await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-    
-    // Process queued ICE candidates
-    if (iceCandidateQueue[data.socketId]) {
-      console.log(`Processing ${iceCandidateQueue[data.socketId].length} queued ICE candidates for ${data.socketId}`);
-      for (const candidate of iceCandidateQueue[data.socketId]) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-      delete iceCandidateQueue[data.socketId];
-    }
-  }
 }
 
 // Handle ICE candidate
 async function handleIceCandidate(data) {
-  const pc = peers[data.socketId];
-  
-  // Only add candidate if remote description is set
-  if (pc && pc.remoteDescription) {
-    await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-  } else {
-    // Queue candidate if PC doesn't exist or remote description not set
-    console.log('Queueing ICE candidate for:', data.socketId);
-    if (!iceCandidateQueue[data.socketId]) {
-      iceCandidateQueue[data.socketId] = [];
-    }
-    iceCandidateQueue[data.socketId].push(data.candidate);
-  }
+  console.log('Received ICE candidate from:', data.socketId);
 }
 
 // Handle chat message
