@@ -6,6 +6,7 @@
 // Global variables
 let socket = null;
 let peers = {}; // Store peer connections: { socketId: RTCPeerConnection }
+let iceCandidateQueue = {}; // Store early ICE candidates: { socketId: [candidate, ...] }
 let localStream = null;
 let remoteStream = null;
 let dataChannel = null;
@@ -392,6 +393,15 @@ async function handleOffer(data) {
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     
+    // Process queued ICE candidates
+    if (iceCandidateQueue[data.socketId]) {
+      console.log(`Processing ${iceCandidateQueue[data.socketId].length} queued ICE candidates for ${data.socketId}`);
+      for (const candidate of iceCandidateQueue[data.socketId]) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      delete iceCandidateQueue[data.socketId];
+    }
+    
     socket.emit('answer', {
       roomId: roomId,
       answer: pc.localDescription,
@@ -408,14 +418,32 @@ async function handleAnswer(data) {
   const pc = peers[data.socketId];
   if (pc) {
     await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+    
+    // Process queued ICE candidates
+    if (iceCandidateQueue[data.socketId]) {
+      console.log(`Processing ${iceCandidateQueue[data.socketId].length} queued ICE candidates for ${data.socketId}`);
+      for (const candidate of iceCandidateQueue[data.socketId]) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      delete iceCandidateQueue[data.socketId];
+    }
   }
 }
 
 // Handle ICE candidate
 async function handleIceCandidate(data) {
   const pc = peers[data.socketId];
-  if (pc) {
+  
+  // Only add candidate if remote description is set
+  if (pc && pc.remoteDescription) {
     await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+  } else {
+    // Queue candidate if PC doesn't exist or remote description not set
+    console.log('Queueing ICE candidate for:', data.socketId);
+    if (!iceCandidateQueue[data.socketId]) {
+      iceCandidateQueue[data.socketId] = [];
+    }
+    iceCandidateQueue[data.socketId].push(data.candidate);
   }
 }
 
