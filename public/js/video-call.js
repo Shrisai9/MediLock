@@ -113,6 +113,9 @@ async function initVideoCall() {
     // Show Setup Modal
     const setupModalEl = document.getElementById('setupModal');
     if (setupModalEl) {
+      // Fix for ARIA warning: remove aria-hidden if present before showing
+      setupModalEl.removeAttribute('aria-hidden');
+
       const setupModal = new bootstrap.Modal(setupModalEl);
       setupModal.show();
     }
