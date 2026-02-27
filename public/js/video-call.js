@@ -106,7 +106,7 @@ async function initVideoCall() {
       };
     }
     
-    // Ensure Socket.IO is loaded
+    // Ensure Socket.IO and PeerJS are loaded
     await ensureDependencies();
 
     // 1. Get local media stream FIRST (so user sees camera immediately)
@@ -122,9 +122,6 @@ async function initVideoCall() {
         showNotification('Camera access failed: ' + err.message, 'warning');
       }
     }
-    
-    // 2. Setup preview
-    setupPreview();
     
     // 3. Show setup modal
     const setupModalEl = document.getElementById('setupModal');
@@ -622,8 +619,10 @@ async function toggleScreenShare() {
     // Replace video track
     const videoTrack = screenStream.getVideoTracks()[0];
     
-    if (peer && peer._pc) {
-      const senders = peer._pc.getSenders();
+    // Iterate over all peers
+    for (let id in peers) {
+      const pc = peers[id];
+      const senders = pc.getSenders();
       const sender = senders.find(s => s.track?.kind === 'video');
       
       if (sender) {
@@ -636,8 +635,9 @@ async function toggleScreenShare() {
       const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
       const cameraTrack = cameraStream.getVideoTracks()[0];
       
-      if (peer && peer._pc) {
-        const senders = peer._pc.getSenders();
+      for (let id in peers) {
+        const pc = peers[id];
+        const senders = pc.getSenders();
         const sender = senders.find(s => s.track?.kind === 'video');
         
         if (sender) {
