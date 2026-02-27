@@ -111,7 +111,10 @@ async function initVideoCall() {
 
   } catch (error) {
     console.error('Fatal error initializing video call:', error);
-    showNotification('Failed to initialize video call', 'danger');
+    // Only show generic error if specific media error wasn't already shown
+    if (!['NotAllowedError', 'NotReadableError', 'TrackStartError', 'NotFoundError'].includes(error.name)) {
+      showNotification('Failed to initialize video call', 'danger');
+    }
   }
 }
 
