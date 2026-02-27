@@ -78,6 +78,7 @@ async function ensureDependencies() {
 // Initialize video call
 async function initVideoCall() {
   try {
+    console.log('Initializing video call...');
     // Get appointment ID from URL
     const urlParams = new URLSearchParams(window.location.search);
     appointmentId = urlParams.get('appointmentId');
@@ -100,6 +101,10 @@ async function initVideoCall() {
       roomId = generateId(16);
     }
     
+    // Update UI immediately so Room ID is visible
+    const roomIdDisplay = document.getElementById('roomIdDisplay');
+    if (roomIdDisplay) roomIdDisplay.textContent = roomId;
+    
     // Initialize encryption
     encryptionManager = new EncryptionManager();
     await encryptionManager.initialize();
@@ -107,18 +112,26 @@ async function initVideoCall() {
     // Ensure Socket.IO and PeerJS are loaded
     await ensureDependencies();
 
-    // Connect to socket
-    await connectSocket();
+    // 1. Get local media stream FIRST (so user sees camera immediately)
+    try {
+      await getLocalStream();
+    } catch (err) {
+      console.error('Failed to get local stream:', err);
+      showNotification('Camera/Microphone access failed. Please check permissions.', 'warning');
+    }
     
-    // Get local media stream
-    await getLocalStream();
-    
-    // Setup preview
+    // 2. Setup preview
     setupPreview();
     
-    // Show setup modal
-    const setupModal = new bootstrap.Modal(document.getElementById('setupModal'));
-    setupModal.show();
+    // 3. Show setup modal
+    const setupModalEl = document.getElementById('setupModal');
+    if (setupModalEl) {
+      const setupModal = new bootstrap.Modal(setupModalEl);
+      setupModal.show();
+    }
+
+    // 4. Connect to socket (in background/parallel)
+    await connectSocket();
     
   } catch (error) {
     console.error('Error initializing video call:', error);
@@ -183,6 +196,7 @@ async function getLocalStream() {
     if (localVideo) {
       localVideo.srcObject = localStream;
       localVideo.muted = true; // Mute to prevent feedback
+      localVideo.setAttribute('playsinline', 'true'); // Required for some browsers
       localVideo.play().catch(e => console.warn('Local video play error:', e));
     }
 
@@ -190,6 +204,7 @@ async function getLocalStream() {
     if (setupPreview) {
       setupPreview.srcObject = localStream;
       setupPreview.muted = true;
+      setupPreview.setAttribute('playsinline', 'true');
       setupPreview.play().catch(e => console.warn('Setup preview play error:', e));
     }
 

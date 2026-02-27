@@ -123,6 +123,7 @@ const io = new Server(server, {
     origin: '*', // Allow all origins for socket.io
     methods: ['GET', 'POST']
   },
+  serveClient: false, // Disable auto-serving to prevent conflicts with our manual route
   transports: ['websocket', 'polling'],
   pingTimeout: 60000,
   pingInterval: 25000
