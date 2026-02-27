@@ -115,7 +115,10 @@ async function initVideoCall() {
     if (setupModalEl) {
       // Prevent premature focus which causes ARIA warnings
       const autoFocusElements = setupModalEl.querySelectorAll('[autofocus]');
-      autoFocusElements.forEach(el => el.removeAttribute('autofocus'));
+      autoFocusElements.forEach(el => {
+        el.removeAttribute('autofocus');
+        el.autofocus = false;
+      });
 
       // Fix for ARIA warning: remove aria-hidden if present before showing
       setupModalEl.removeAttribute('aria-hidden');
@@ -221,6 +224,10 @@ function joinConsultation() {
     // Hide modal
     const setupModalEl = document.getElementById('setupModal');
     if (setupModalEl) {
+        // Remove focus from button before hiding to prevent ARIA warning
+        const joinBtn = document.getElementById('joinBtn');
+        if (joinBtn) joinBtn.blur();
+
         const modal = bootstrap.Modal.getInstance(setupModalEl);
         if (modal) modal.hide();
     }
