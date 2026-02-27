@@ -305,7 +305,8 @@ async function submitAppointment() {
       method: 'POST',
       body: JSON.stringify({
         doctorId: parseInt(doctorId),
-        appointmentDate: new Date(ap
+        appointmentDate: new Date(appointmentDate).toISOString(),
+        symptoms
       })
     });
     
