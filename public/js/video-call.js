@@ -4,8 +4,8 @@
  */
 
 // Global variables
-let peer = null;
 let socket = null;
+let peers = {}; // Store peer connections: { socketId: RTCPeerConnection }
 let localStream = null;
 let remoteStream = null;
 let dataChannel = null;
@@ -14,9 +14,6 @@ let roomId = null;
 let appointmentId = null;
 let callTimerInterval = null;
 let callDuration = 0;
-
-// Map to store socket ID -> peer ID mappings
-let peerIdMap = new Map();
 
 // Media constraints
 const mediaConstraints = {
@@ -54,17 +51,6 @@ async function ensureDependencies() {
       script.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
       script.onload = resolve;
       script.onerror = () => reject(new Error('Failed to load Socket.IO'));
-      document.head.appendChild(script);
-    }));
-  }
-
-  if (typeof Peer === 'undefined') {
-    console.log('PeerJS not found, loading from CDN...');
-    dependencies.push(new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
-      script.onload = resolve;
-      script.onerror = () => reject(new Error('Failed to load PeerJS'));
       document.head.appendChild(script);
     }));
   }
@@ -119,7 +105,7 @@ async function initVideoCall() {
       };
     }
     
-    // Ensure Socket.IO and PeerJS are loaded
+    // Ensure Socket.IO is loaded
     await ensureDependencies();
 
     // 1. Get local media stream FIRST (so user sees camera immediately)
@@ -183,7 +169,6 @@ function connectSocket() {
     socket.on('room-joined', handleRoomJoined);
     socket.on('user-joined', handleUserJoined);
     socket.on('user-left', handleUserLeft);
-    socket.on('peer-registered', handlePeerRegistered);
     
     // Handle WebRTC signaling
     socket.on('offer', handleOffer);
@@ -266,9 +251,6 @@ async function joinConsultation() {
       if (setupModal) setupModal.hide();
     }
     
-    // Create PeerJS connection
-    createPeerConnection();
-    
     // Start call timer
     startCallTimer();
     
@@ -278,123 +260,88 @@ async function joinConsultation() {
   }
 }
 
-// Create PeerJS connection
-function createPeerConnection() {
-  console.log('Creating PeerJS connection with ICE servers');
-  
-  peer = new Peer(undefined, {
-    config: iceServers
-  });
-  
-  peer.on('open', (id) => {
-    console.log('Peer connected with ID:', id);
-    
-    // Register our peer ID with the socket server
-    if (socket && socket.connected) {
-      socket.emit('register-peer', { peerId: id });
-      
-      // Join room via socket AFTER peer is ready
-      socket.emit('join-room', {
-        roomId: roomId,
-        userId: auth.user.id,
-        userName: auth.user.firstName || auth.user.email,
-        role: auth.user.role
-      });
-    }
-  });
-  
-  peer.on('call', handleIncomingCall);
-  
-  peer.on('error', (error) => {
-    console.error('Peer error:', error);
-    // Show notification but don't crash
-    if (error.type === 'network' || error.type === 'server-error') {
-      showNotification('Connection error. Please check your internet connection.', 'warning');
-    }
-  });
-}
-
-// Handle incoming call
-async function handleIncomingCall(call) {
-  console.log('Incoming call from peer:', call.peer);
-  
-  // Answer with local stream
-  call.answer(localStream);
-  
-  call.on('stream', (stream) => {
-    console.log('Received remote stream', stream.id);
-    const remoteVideo = document.getElementById('remoteVideo');
-    remoteVideo.srcObject = stream;
-    remoteStream = stream;
-    
-    // Force play
-    remoteVideo.play().then(() => {
-      console.log('Remote video playing');
-    }).catch(e => {
-      console.log('Auto-play blocked, showing play button');
-      remoteVideo.controls = true;
-    });
-    
-    // Hide waiting overlay
-    const waitingOverlay = document.getElementById('waitingOverlay');
-    if (waitingOverlay) waitingOverlay.style.display = 'none';
-  });
-  
-  call.on('close', () => {
-    console.log('Call closed by remote');
-    // Don't immediately end - wait for user to end call
-  });
-  
-  call.on('error', (err) => {
-    console.error('Call error:', err);
-  });
-}
-
 // Handle room joined - when WE join and there are others in the room
 async function handleRoomJoined(data) {
   console.log('Room joined, participants:', data.participants);
   
   // Exchange encryption keys
-  const myPublicKey = await encryptionManager.getPublicKey();
+  if (encryptionManager) {
+    await encryptionManager.getPublicKey();
+  }
   
   // If there are participants, create call to each
   if (data.participants && data.participants.length > 0) {
     for (const participant of data.participants) {
-      // Only call if they have a peerId registered
-      if (participant.peerId) {
-        // Store mapping
-        peerIdMap.set(participant.socketId, participant.peerId);
-        
-        console.log('Calling existing participant:', participant.peerId);
-        
-        try {
-          const call = peer.call(participant.peerId, localStream);
-          
-          call.on('stream', (stream) => {
-            console.log('Received remote stream from', participant.userName);
-            const remoteVideo = document.getElementById('remoteVideo');
-            remoteVideo.srcObject = stream;
-            remoteStream = stream;
-            remoteVideo.play().catch(e => console.log('Play blocked'));
-            const waitingOverlay = document.getElementById('waitingOverlay');
-            if (waitingOverlay) waitingOverlay.style.display = 'none';
-          });
-          
-          call.on('close', () => {
-            console.log('Call closed');
-          });
-          
-          call.on('error', (err) => {
-            console.error('Outgoing call error:', err);
-          });
-        } catch (e) {
-          console.error('Error calling participant:', e);
-        }
-      }
+      console.log('Initiating connection to:', participant.userName);
+      createPeerConnection(participant.socketId, true); // true = initiator
     }
   } else {
     console.log('No participants in room yet, waiting...');
   }
+}
+
+// Create RTCPeerConnection
+function createPeerConnection(targetSocketId, isInitiator) {
+  console.log(`Creating RTCPeerConnection for ${targetSocketId} (Initiator: ${isInitiator})`);
+  
+  const pc = new RTCPeerConnection(iceServers);
+  peers[targetSocketId] = pc;
+
+  // Add local tracks
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  }
+
+  // Handle ICE candidates
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit('ice-candidate', {
+        roomId: roomId,
+        candidate: event.candidate,
+        targetSocketId: targetSocketId
+      });
+    }
+  };
+
+  // Handle remote stream
+  pc.ontrack = (event) => {
+    console.log('Received remote stream');
+    const remoteVideo = document.getElementById('remoteVideo');
+    if (remoteVideo.srcObject !== event.streams[0]) {
+      remoteVideo.srcObject = event.streams[0];
+      remoteStream = event.streams[0];
+      
+      remoteVideo.play().catch(e => {
+        console.log('Auto-play blocked, showing controls');
+        remoteVideo.controls = true;
+      });
+
+      // Hide waiting overlay
+      const waitingOverlay = document.getElementById('waitingOverlay');
+      if (waitingOverlay) waitingOverlay.style.display = 'none';
+    }
+  };
+
+  // Handle connection state
+  pc.onconnectionstatechange = () => {
+    console.log(`Connection state with ${targetSocketId}: ${pc.connectionState}`);
+  };
+
+  // If initiator, create offer
+  if (isInitiator) {
+    pc.createOffer()
+      .then(offer => pc.setLocalDescription(offer))
+      .then(() => {
+        socket.emit('offer', {
+          roomId: roomId,
+          offer: pc.localDescription,
+          targetSocketId: targetSocketId
+        });
+      })
+      .catch(e => console.error('Error creating offer:', e));
+  }
+
+  return pc;
 }
 
 // Handle user joined - when SOMEONE ELSE joins the room
@@ -405,13 +352,8 @@ async function handleUserJoined(data) {
   const waitingOverlay = document.getElementById('waitingOverlay');
   if (waitingOverlay) waitingOverlay.style.display = 'none';
   
-  // Store peer ID if available (from the new server logic)
-  if (data.peerId) {
-    console.log('Storing peer ID for new user:', data.peerId);
-    peerIdMap.set(data.socketId, data.peerId);
-  }
-  
-  // DO NOT call here. The new user (who just joined) will call us.
+  // We don't need to create an offer here. 
+  // The new user (initiator) will send us an offer via handleOffer.
   
   showNotification(`${data.userName} joined the call`, 'info');
 }
@@ -421,7 +363,10 @@ function handleUserLeft(data) {
   console.log('User left:', data.userName);
   
   // Remove from peer ID map
-  peerIdMap.delete(data.socketId);
+  if (peers[data.socketId]) {
+    peers[data.socketId].close();
+    delete peers[data.socketId];
+  }
   
   // Only show waiting overlay if no remote stream
   if (!remoteStream) {
@@ -432,51 +377,46 @@ function handleUserLeft(data) {
   showNotification(`${data.userName || 'Participant'} left the call`, 'info');
 }
 
-// Handle peer registered - when another user's peer ID is registered
-function handlePeerRegistered(data) {
-  console.log('Peer registered:', data.peerId, 'for', data.socketId);
-  
-  // Store the peer ID mapping
-  peerIdMap.set(data.socketId, data.peerId);
-  
-  // Try to call this peer now that we have their peer ID
-  if (peer && localStream) {
-    try {
-      console.log('Calling peer:', data.peerId);
-      const call = peer.call(data.peerId, localStream);
-      
-      call.on('stream', (stream) => {
-        console.log('Received remote stream from peer-registered');
-        const remoteVideo = document.getElementById('remoteVideo');
-        remoteVideo.srcObject = stream;
-        remoteStream = stream;
-        remoteVideo.play().catch(e => console.log('Play blocked'));
-        const waitingOverlay = document.getElementById('waitingOverlay');
-        if (waitingOverlay) waitingOverlay.style.display = 'none';
-      });
-      
-      call.on('error', (err) => {
-        console.error('Call error with peer-registered:', err);
-      });
-    } catch (e) {
-      console.error('Error calling peer:', e);
-    }
-  }
-}
-
 // Handle WebRTC offer
 async function handleOffer(data) {
   console.log('Received offer from:', data.socketId);
+  
+  // Create PC if not exists (receiver side)
+  let pc = peers[data.socketId];
+  if (!pc) {
+    pc = createPeerConnection(data.socketId, false);
+  }
+
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    
+    socket.emit('answer', {
+      roomId: roomId,
+      answer: pc.localDescription,
+      targetSocketId: data.socketId
+    });
+  } catch (e) {
+    console.error('Error handling offer:', e);
+  }
 }
 
 // Handle WebRTC answer
 async function handleAnswer(data) {
   console.log('Received answer from:', data.socketId);
+  const pc = peers[data.socketId];
+  if (pc) {
+    await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+  }
 }
 
 // Handle ICE candidate
 async function handleIceCandidate(data) {
-  console.log('Received ICE candidate from:', data.socketId);
+  const pc = peers[data.socketId];
+  if (pc) {
+    await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+  }
 }
 
 // Handle chat message
@@ -722,9 +662,9 @@ function handleCallEnded() {
     localStream.getTracks().forEach(track => track.stop());
   }
   
-  // Close peer connection
-  if (peer) {
-    peer.destroy();
+  // Close all peer connections
+  for (let id in peers) {
+    peers[id].close();
   }
   
   // Close socket
