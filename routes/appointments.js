@@ -28,10 +28,11 @@ router.post('/', authenticate, [
 
     const { doctorId, appointmentDate, symptoms, durationMinutes = 30 } = req.body;
     
-    // Convert ISO date to MySQL format (YYYY-MM-DD HH:mm:ss)
-    const formattedDate = new Date(appointmentDate).toISOString().slice(0, 19).replace('T', ' ');
+    // The 'appointmentDate' is an ISO string from the client.
+    // The mysql2 driver can handle the Date object directly and format it correctly for UTC.
+    const jsDate = new Date(appointmentDate);
 
-    console.log('Creating appointment:', { doctorId, appointmentDate: formattedDate, userId: req.user.id, role: req.user.role });
+    console.log('Creating appointment:', { doctorId, appointmentDate: jsDate, userId: req.user.id, role: req.user.role });
 
     // Get patient ID - Check both patients table and users table
     let patient = await db.getOne('SELECT id FROM patients WHERE user_id = ?', [req.user.id]);
@@ -65,7 +66,7 @@ router.post('/', authenticate, [
       `INSERT INTO appointments 
         (patient_id, doctor_id, appointment_date, duration_minutes, room_id, room_password, encryption_key_hash, symptoms) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [patient.id, doctorId, formattedDate, durationMinutes, roomId, roomPassword, encryptionKeyHash, symptoms || null]
+      [patient.id, doctorId, jsDate, durationMinutes, roomId, roomPassword, encryptionKeyHash, symptoms || null]
     );
 
     // Get appointment details
@@ -295,7 +296,7 @@ router.put('/:id', authenticate, [
 
     if (appointmentDate) {
       updates.push('appointment_date = ?');
-      params.push(appointmentDate);
+      params.push(new Date(appointmentDate));
     }
 
     if (status) {
