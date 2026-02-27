@@ -144,8 +144,7 @@ async function loadDoctorDashboard() {
       } else {
         scheduleList.innerHTML = appointments.map(apt => `
           <tr>
-            <td>${formatTime(apt.appointment_date)}</td>
-            <td>${apt.patient_name || 'Patient'}</td>
+            <td>${formattient_name || 'Patient'}</td>
             <td>Video Consultation</td>
             <td><span class="badge bg-${getStatusColor(apt.status)}">${apt.status}</span></td>
             <td>
@@ -306,8 +305,7 @@ async function submitAppointment() {
       method: 'POST',
       body: JSON.stringify({
         doctorId: parseInt(doctorId),
-        appointmentDate,
-        symptoms
+        appointmentDate: new Date(ap
       })
     });
     
@@ -509,6 +507,19 @@ function formatDate(dateStr) {
   if (!dateStr) return '-';
   const date = new Date(dateStr);
   return date.toLocaleDateString();
+}
+
+// Format date time helper
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  return date.toLocaleString([], { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
 }
 
 // Refresh data

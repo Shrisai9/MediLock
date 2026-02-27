@@ -136,9 +136,6 @@ async function initVideoCall() {
       }
     }
     
-    // 2. Setup preview
-    setupPreview();
-    
     // 3. Show setup modal
     const setupModalEl = document.getElementById('setupModal');
     if (setupModalEl) {
@@ -256,13 +253,8 @@ async function joinConsultation() {
   try {
     console.log('Joining consultation, room:', roomId);
     
-    // Join room via socket
-    socket.emit('join-room', {
-      roomId: roomId,
-      userId: auth.user.id,
-      userName: auth.user.firstName || auth.user.email,
-      role: auth.user.role
-    });
+    // Blur the button to prevent aria-hidden warning
+    if (document.activeElement) document.activeElement.blur();
     
     // Update UI
     document.getElementById('roomIdDisplay').textContent = roomId;
@@ -300,6 +292,14 @@ function createPeerConnection() {
     // Register our peer ID with the socket server
     if (socket && socket.connected) {
       socket.emit('register-peer', { peerId: id });
+      
+      // Join room via socket AFTER peer is ready
+      socket.emit('join-room', {
+        roomId: roomId,
+        userId: auth.user.id,
+        userName: auth.user.firstName || auth.user.email,
+        role: auth.user.role
+      });
     }
   });
   

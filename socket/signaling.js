@@ -72,8 +72,9 @@ const setupSocketHandlers = (io) => {
       try {
         const { roomId, userId, userName, role } = data;
 
-        // Store user info
-        userSockets.set(socket.id, { userId, userName, role, roomId });
+        // Store user info - MERGE with existing to preserve peerId
+        const existingInfo = userSockets.get(socket.id) || {};
+        userSockets.set(socket.id, { ...existingInfo, userId, userName, role, roomId });
 
         // Join socket room
         socket.join(roomId);
@@ -97,6 +98,7 @@ const setupSocketHandlers = (io) => {
           userId,
           userName,
           role,
+          peerId: existingInfo.peerId || null, // Include peerId if available
           joinedAt: new Date()
         });
 
@@ -105,7 +107,8 @@ const setupSocketHandlers = (io) => {
           socketId: socket.id,
           userId,
           userName,
-          role
+          role,
+          peerId: existingInfo.peerId || null
         });
 
         // Send room info to the joining user
