@@ -23,48 +23,11 @@ const setupSocketHandlers = (io) => {
         userId,
         userName,
         role,
-        roomId,
-        peerId: null // Will be set when peer connects
+        roomId
       });
 
       socket.emit('authenticated', { success: true });
       console.log(`User authenticated: ${userName} (${role})`);
-    });
-
-    // Handle peer ID registration (after PeerJS connects)
-    socket.on('register-peer', (data) => {
-      const { peerId } = data;
-      const userInfo = userSockets.get(socket.id);
-      
-      if (userInfo) {
-        userInfo.peerId = peerId;
-        userSockets.set(socket.id, userInfo);
-        
-        // Notify others about our peer ID
-        if (userInfo.roomId) {
-          const room = rooms.get(userInfo.roomId);
-          if (room) {
-            // Update the participant in the room with the peerId
-            const participant = room.participants.get(socket.id);
-            if (participant) {
-              participant.peerId = peerId;
-              room.participants.set(socket.id, participant);
-            }
-
-            room.participants.forEach((participant, sockId) => {
-              if (sockId !== socket.id) {
-                io.to(sockId).emit('peer-registered', {
-                  socketId: socket.id,
-                  peerId: peerId,
-                  userName: userInfo.userName
-                });
-              }
-            });
-          }
-        }
-        
-        console.log(`Peer ID registered: ${peerId} for ${userInfo.userName}`);
-      }
     });
 
     // Join a consultation room
@@ -98,7 +61,6 @@ const setupSocketHandlers = (io) => {
           userId,
           userName,
           role,
-          peerId: existingInfo.peerId || null, // Include peerId if available
           joinedAt: new Date()
         });
 
@@ -107,8 +69,7 @@ const setupSocketHandlers = (io) => {
           socketId: socket.id,
           userId,
           userName,
-          role,
-          peerId: existingInfo.peerId || null
+          role
         });
 
         // Send room info to the joining user
