@@ -362,6 +362,9 @@ async function handleRoomJoined(data) {
     for (const participant of data.participants) {
       // Only call if they have a peerId registered
       if (participant.peerId) {
+        // Store mapping
+        peerIdMap.set(participant.socketId, participant.peerId);
+        
         console.log('Calling existing participant:', participant.peerId);
         
         try {
@@ -402,7 +405,13 @@ async function handleUserJoined(data) {
   const waitingOverlay = document.getElementById('waitingOverlay');
   if (waitingOverlay) waitingOverlay.style.display = 'none';
   
-  // DO NOT call here using socketId. Wait for 'peer-registered' event.
+  // Store peer ID if available (from the new server logic)
+  if (data.peerId) {
+    console.log('Storing peer ID for new user:', data.peerId);
+    peerIdMap.set(data.socketId, data.peerId);
+  }
+  
+  // DO NOT call here. The new user (who just joined) will call us.
   
   showNotification(`${data.userName} joined the call`, 'info');
 }
