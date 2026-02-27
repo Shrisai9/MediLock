@@ -129,8 +129,8 @@ async function loadDoctorDashboard() {
   try {
     console.log('Loading doctor dashboard...');
     
-    // Load all appointments (not just today)
-    const appointmentsRes = await apiRequest('/appointments');
+    // Load upcoming appointments for the doctor
+    const appointmentsRes = await apiRequest('/appointments?upcoming=true');
     console.log('Doctor appointments response:', appointmentsRes);
     
     const appointments = appointmentsRes.data || [];
@@ -140,10 +140,11 @@ async function loadDoctorDashboard() {
     const scheduleList = document.getElementById('scheduleList');
     if (scheduleList) {
       if (appointments.length === 0) {
-        scheduleList.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No appointments scheduled</td></tr>';
+        scheduleList.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No upcoming appointments</td></tr>';
       } else {
         scheduleList.innerHTML = appointments.map(apt => `
           <tr>
+            <td>${formatDateTime(apt.appointment_date)}</td>
             <td>${apt.patient_name || 'Patient'}</td>
             <td>Video Consultation</td>
             <td><span class="badge bg-${getStatusColor(apt.status)}">${apt.status}</span></td>

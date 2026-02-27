@@ -178,7 +178,7 @@ router.get('/', authenticate, async (req, res) => {
 
     if (upcoming === 'true') {
       // Use UTC comparison to avoid timezone issues
-      sql += " AND a.appointment_date > UTC_TIMESTAMP() AND a.status = 'scheduled'";
+      sql += " AND a.appointment_date >= UTC_TIMESTAMP() AND a.status = 'scheduled'";
     }
 
     sql += ' ORDER BY a.appointment_date ASC';
