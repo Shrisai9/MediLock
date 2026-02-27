@@ -360,30 +360,33 @@ async function handleRoomJoined(data) {
   // If there are participants, create call to each
   if (data.participants && data.participants.length > 0) {
     for (const participant of data.participants) {
-      console.log('Calling participant:', participant.socketId);
-      
-      try {
-        const call = peer.call(participant.socketId, localStream);
+      // Only call if they have a peerId registered
+      if (participant.peerId) {
+        console.log('Calling existing participant:', participant.peerId);
         
-        call.on('stream', (stream) => {
-          console.log('Received remote stream from', participant.socketId);
-          const remoteVideo = document.getElementById('remoteVideo');
-          remoteVideo.srcObject = stream;
-          remoteStream = stream;
-          remoteVideo.play().catch(e => console.log('Play blocked'));
-          const waitingOverlay = document.getElementById('waitingOverlay');
-          if (waitingOverlay) waitingOverlay.style.display = 'none';
-        });
-        
-        call.on('close', () => {
-          console.log('Call closed');
-        });
-        
-        call.on('error', (err) => {
-          console.error('Outgoing call error:', err);
-        });
-      } catch (e) {
-        console.error('Error calling participant:', e);
+        try {
+          const call = peer.call(participant.peerId, localStream);
+          
+          call.on('stream', (stream) => {
+            console.log('Received remote stream from', participant.userName);
+            const remoteVideo = document.getElementById('remoteVideo');
+            remoteVideo.srcObject = stream;
+            remoteStream = stream;
+            remoteVideo.play().catch(e => console.log('Play blocked'));
+            const waitingOverlay = document.getElementById('waitingOverlay');
+            if (waitingOverlay) waitingOverlay.style.display = 'none';
+          });
+          
+          call.on('close', () => {
+            console.log('Call closed');
+          });
+          
+          call.on('error', (err) => {
+            console.error('Outgoing call error:', err);
+          });
+        } catch (e) {
+          console.error('Error calling participant:', e);
+        }
       }
     }
   } else {
@@ -399,25 +402,7 @@ async function handleUserJoined(data) {
   const waitingOverlay = document.getElementById('waitingOverlay');
   if (waitingOverlay) waitingOverlay.style.display = 'none';
   
-  // Create call to the new user
-  try {
-    const call = peer.call(data.socketId, localStream);
-    
-    call.on('stream', (stream) => {
-      console.log('Received remote stream from new user');
-      const remoteVideo = document.getElementById('remoteVideo');
-      remoteVideo.srcObject = stream;
-      remoteStream = stream;
-      remoteVideo.play().catch(e => console.log('Play blocked'));
-      if (waitingOverlay) waitingOverlay.style.display = 'none';
-    });
-    
-    call.on('error', (err) => {
-      console.error('Call error with new user:', err);
-    });
-  } catch (e) {
-    console.error('Error calling new user:', e);
-  }
+  // DO NOT call here using socketId. Wait for 'peer-registered' event.
   
   showNotification(`${data.userName} joined the call`, 'info');
 }

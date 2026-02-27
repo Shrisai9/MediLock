@@ -44,6 +44,13 @@ const setupSocketHandlers = (io) => {
         if (userInfo.roomId) {
           const room = rooms.get(userInfo.roomId);
           if (room) {
+            // Update the participant in the room with the peerId
+            const participant = room.participants.get(socket.id);
+            if (participant) {
+              participant.peerId = peerId;
+              room.participants.set(socket.id, participant);
+            }
+
             room.participants.forEach((participant, sockId) => {
               if (sockId !== socket.id) {
                 io.to(sockId).emit('peer-registered', {
