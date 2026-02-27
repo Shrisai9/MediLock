@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Consultation - MediLock</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="consultation-page">
+    <!-- Header -->
+    <header class="consultation-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <a href="index.html" class="brand">
+                        <i class="fas fa-shield-alt"></i> MediLock
+                    </a>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="encryption-status">
+                        <i class="fas fa-lock"></i>
+                        <span>E2E Encrypted</span>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="call-timer" id="callTimer">
+                        <i class="fas fa-clock"></i>
+                        <span>00:00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Video Area -->
+    <main class="video-area">
+        <div class="container-fluid h-100">
+            <div class="row h-100">
+                <!-- Video Container -->
+                <div class="col-lg-9 video-main">
+                    <div class="video-container" id="videoContainer">
+                        <!-- Remote Video -->
+                        <video id="remoteVideo" autoplay playsinline></video>
+                        
+                        <!-- Local Video (PiP) -->
+                        <div class="local-video" id="localVideoContainer">
+                            <video id="localVideo" autoplay playsinline muted></video>
+                            <span class="pip-label">You</span>
+                        </div>
+
+                        <!-- Waiting Overlay -->
+                        <div class="waiting-overlay" id="waitingOverlay">
+                            <div class="waiting-content">
+                                <div class="spinner-border text-primary" role="status"></div>
+                                <h3>Waiting for participant...</h3>
+                                <p>Share the room link or wait for them to join</p>
+                                <div class="room-info">
+                                    <span>Room ID: </span>
+                                    <code id="roomIdDisplay">-</code>
+                                    <button class="btn btn-sm btn-copy" onclick="copyRoomId()">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Connection Status -->
+                        <div class="connection-status" id="connectionStatus">
+                            <div class="status-item">
+                                <i class="fas fa-wifi"></i>
+                                <span id="connectionQuality">Connecting...</span>
+                            </div>
+                            <div class="status-item">
+                                <i class="fas fa-shield-alt"></i>
+                                <span id="encryptionStatus">Secure</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Controls -->
+                    <div class="video-controls" id="videoControls">
+                        <div class="controls-left">
+                            <button class="control-btn" id="muteBtn" onclick="toggleMute()" title="Toggle Mute">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <button class="control-btn" id="videoBtn" onclick="toggleVideo()" title="Toggle Video">
+                                <i class="fas fa-video"></i>
+                            </button>
+                        </div>
+                        <div class="controls-center">
+                            <button class="control-btn end-call" onclick="endCall()" title="End Call">
+                                <i class="fas fa-phone-slash"></i>
+                            </button>
+                        </div>
+                        <div class="controls-right">
+                            <button class="control-btn" onclick="toggleScreenShare()" title="Share Screen">
+                                <i class="fas fa-desktop"></i>
+                            </button>
+                            <button class="control-btn" onclick="toggleChat()" title="Chat">
+                                <i class="fas fa-comment"></i>
+                                <span class="chat-badge d-none" id="chatBadge">0</span>
+                            </button>
+                            <button class="control-btn" onclick="toggleFullscreen()" title="Fullscreen">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Sidebar -->
+                <div class="col-lg-3 chat-sidebar" id="chatSidebar">
+                    <div class="chat-header">
+                        <h5>Encrypted Chat</h5>
+                        <button class="btn-close-chat" onclick="toggleChat()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="chat-system">
+                            <i class="fas fa-lock"></i>
+                            Messages are end-to-end encrypted
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="chatInput" placeholder="Type a message..." onkeypress="handleChatKeyPress(event)">
+                        <button onclick="sendChatMessage()">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Pre-call Setup Modal -->
+    <div class="modal fade show" id="setupModal" tabindex="-1" aria-modal="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-video"></i> Video Consultation Setup</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="setup-preview">
+                        <video id="setupPreview" autoplay playsinline muted></video>
+                        <div class="preview-controls">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="toggleSetupVideo()">
+                                <i class="fas fa-video"></i> Test Camera
+                            </button>
+                        </div>
+                    </div>
+                    <div class="setup-info">
+                        <div class="info-item">
+                            <i class="fas fa-lock"></i>
+                            <span>Your call will be encrypted end-to-end</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>AES-256-GCM with ECDH key exchange</span>
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="confirmReady">
+                        <label class="form-check-label" for="confirmReady">
+                            I'm ready to join the consultation
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="leaveConsultation()">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="joinBtn" onclick="joinConsultation()" disabled>
+                        <i class="fas fa-video"></i> Join Consultation
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Encryption Info Modal -->
+    <div class="modal fade" id="encryptionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-shield-alt"></i> Encryption Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="encryption-details">
+                        <div class="encryption-layer">
+                            <h6>Media Encryption</h6>
+                            <div class="encryption-item">
+                                <span class="label">Algorithm:</span>
+                                <span class="value">AES-256-GCM</span>
+                            </div>
+                            <div class="encryption-item">
+                                <span class="label">Key Exchange:</span>
+                                <span class="value">ECDH (P-256)</span>
+                            </div>
+                            <div class="encryption-item">
+                                <span class="label">Transport:</span>
+                                <span class="value">DTLS-SRTP</span>
+                            </div>
+                        </div>
+                        <div class="encryption-visual">
+                            <div class="lock-animation">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load core libraries first -->
+    <script src="js/main.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="js/encryption.js"></script>
+    <script src="js/video-call.js"></script>
+</body>
+</html>

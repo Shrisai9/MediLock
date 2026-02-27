@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - MediLock</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="index.html" class="sidebar-brand">
+                <i class="fas fa-shield-alt"></i> MediLock
+            </a>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="active">
+                <a href="admin-dashboard.html">
+                    <i class="fas fa-home"></i> <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="showSection('users')">
+                    <i class="fas fa-users"></i> <span>Users</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="showSection('doctors')">
+                    <i class="fas fa-user-md"></i> <span>Doctors</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="showSection('appointments')">
+                    <i class="fas fa-calendar-alt"></i> <span>Appointments</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="showSection('audit')">
+                    <i class="fas fa-history"></i> <span>Audit Logs</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="showSection('settings')">
+                    <i class="fas fa-cog"></i> <span>Settings</span>
+                </a>
+            </li>
+            <li class="logout">
+                <a href="#" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Header -->
+        <header class="top-header">
+            <button class="btn-toggle-sidebar" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="header-right">
+                <div class="system-status">
+                    <span class="status-indicator online"></span>
+                    <span>System Online</span>
+                </div>
+                <div class="notification-bell">
+                    <a href="#"><i class="fas fa-bell"></i><span class="badge">8</span></a>
+                </div>
+                <div class="user-profile">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%230D7377' viewBox='0 0 24 24'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="Admin">
+                    <span id="userName">Admin</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Content -->
+        <div class="dashboard-content">
+            <!-- Welcome Section -->
+            <div class="welcome-section">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1>Admin Dashboard</h1>
+                        <p>System overview and management</p>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <button class="btn btn-primary" onclick="refreshData()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon patients">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalPatients">0</h3>
+                            <p>Total Patients</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon doctors">
+                            <i class="fas fa-user-md"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalDoctors">0</h3>
+                            <p>Total Doctors</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon appointments">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalAppointments">0</h3>
+                            <p>Total Appointments</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon today">
+                            <i class="fas fa-calendar-day"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="todayAppointments">0</h3>
+                            <p>Today's Appointments</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-line"></i> Appointment Trends</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-placeholder">
+                                <div class="chart-bars">
+                                    <div class="bar" style="height: 40%"><span>Mon</span></div>
+                                    <div class="bar" style="height: 60%"><span>Tue</span></div>
+                                    <div class="bar" style="height: 45%"><span>Wed</span></div>
+                                    <div class="bar" style="height: 80%"><span>Thu</span></div>
+                                    <div class="bar" style="height: 70%"><span>Fri</span></div>
+                                    <div class="bar" style="height: 55%"><span>Sat</span></div>
+                                    <div class="bar" style="height: 30%"><span>Sun</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-pie"></i> User Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="pie-chart-placeholder">
+                                <div class="pie-segment patients"></div>
+                                <div class="pie-segment doctors"></div>
+                                <div class="pie-legend">
+                                    <div><span class="dot patients"></span> Patients</div>
+                                    <div><span class="dot doctors"></span> Doctors</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Section -->
+            <div id="usersSection" class="section-container d-none">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-users"></i> All Users</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersList"><tr><td colspan="6" class="text-center">Loading...</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Doctors Section -->
+            <div id="doctorsSection" class="section-container d-none">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-user-md"></i> All Doctors</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th><th>Name</th><th>Specialization</th><th>Experience</th><th>Fee</th><th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminDoctorsList"><tr><td colspan="6" class="text-center">Loading...</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Appointments Section -->
+            <div id="appointmentsSection" class="section-container d-none">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-calendar-alt"></i> All Appointments</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th><th>Patient</th><th>Doctor</th><th>Date</th><th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminAppointmentsList"><tr><td colspan="5" class="text-center">Loading...</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Section -->
+            <div id="auditSection" class="section-container d-none">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-history"></i> Audit Logs</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th><th>Time</th><th>User</th><th>Action</th><th>IP</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="auditLogsList"><tr><td colspan="5" class="text-center">Loading...</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div id="settingsSection" class="section-container d-none">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cog"></i> System Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">System Status</label>
+                                    <div><span class="badge bg-success">Online</span></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Database</label>
+                                    <div><span class="badge bg-success">Connected (India DC)</span></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Encryption</label>
+                                    <div><span class="badge bg-info">AES-256-GCM + ECDH</span></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">DPDP Act 2023</label>
+                                    <div><span class="badge bg-success">Compliant</span></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Data Localization</label>
+                                    <div><span class="badge bg-success">India Only</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

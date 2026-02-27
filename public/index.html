@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediLock - Secure Video Consultation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg fixed-top" id="mainNav">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="fas fa-shield-alt"></i> MediLock
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mx-auto">
+                    <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#security">Security</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#doctors">Doctors</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#about">About</a></li>
+                </ul>
+                <div class="d-flex gap-2">
+                    <a href="login.html" class="btn btn-outline-primary">Login</a>
+                    <a href="register.html" class="btn btn-primary">Get Started</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-overlay"></div>
+        <div class="container hero-content">
+            <div class="row align-items-center">
+                <div class="col-lg-7">
+                    <span class="hero-badge">
+                        <i class="fas fa-certificate"></i> DPDP Act 2023 Compliant
+                    </span>
+                    <h1 class="hero-title">Secure Video Consultations with <span class="text-gradient">End-to-End Encryption</span></h1>
+                    <p class="hero-subtitle">Experience healthcare from the comfort of your home. Your medical consultations are protected with military-grade AES-256 encryption.</p>
+                    <div class="hero-buttons">
+                        <a href="register.html" class="btn btn-primary btn-lg">
+                            <i class="fas fa-video"></i> Start Consultation
+                        </a>
+                        <a href="#features" class="btn btn-outline-light btn-lg">
+                            <i class="fas fa-info-circle"></i> Learn More
+                        </a>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="50000">0</span>
+                            <span class="stat-label">Consultations</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="500">0</span>
+                            <span class="stat-label">Doctors</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" data-count="100">0</span>
+                            <span class="stat-label">% Encrypted</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="hero-visual">
+                        <div class="encryption-visual">
+                            <div class="lock-icon">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div class="shield-rings">
+                                <div class="ring ring-1"></div>
+                                <div class="ring ring-2"></div>
+                                <div class="ring ring-3"></div>
+                            </div>
+                            <div class="encryption-label">
+                                <span>AES-256-GCM</span>
+                                <small>E2EE Protected</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features-section">
+        <div class="container">
+            <div class="section-header text-center">
+                <span class="section-tag">Why Choose MediLock</span>
+                <h2 class="section-title">Secure Healthcare Made Simple</h2>
+                <p class="section-subtitle">Advanced encryption meets intuitive design</p>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-virus"></i>
+                        </div>
+                        <h3>E2E Encryption</h3>
+                        <p>Your video calls and medical data are encrypted using AES-256-GCM with ECDH key exchange. Only you and your doctor can access it.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <h3>Multi-Factor Auth</h3>
+                        <p>Secure login with email/password plus OTP verification. Your account is protected by industry-standard 2FA.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <h3>Data Localization</h3>
+                        <p>All data stored in India data centers. Fully compliant with DPDP Act 2023 data localization requirements.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Security Section -->
+    <section id="security" class="security-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6">
+                    <div class="security-visual">
+                        <div class="encryption-diagram">
+                            <div class="layer user-layer">
+                                <i class="fas fa-user"></i>
+                                <span>You</span>
+                            </div>
+                            <div class="encryption-arrow">
+                                <i class="fas fa-lock"></i>
+                                <span>AES-256-GCM</span>
+                            </div>
+                            <div class="layer server-layer">
+                                <i class="fas fa-server"></i>
+                                <span>Server</span>
+                            </div>
+                            <div class="encryption-arrow">
+                                <i class="fas fa-lock"></i>
+                                <span>DTLS-SRTP</span>
+                            </div>
+                            <div class="layer doctor-layer">
+                                <i class="fas fa-user-md"></i>
+                                <span>Doctor</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="security-content">
+                        <span class="section-tag">Bank-Grade Security</span>
+                        <h2 class="section-title">Your Privacy is Our Priority</h2>
+                        <div class="security-features">
+                            <div class="security-item">
+                                <div class="security-icon">
+                                    <i class="fas fa-key"></i>
+                                </div>
+                                <div class="security-text">
+                                    <h4>ECDH Key Exchange</h4>
+                                    <p>Elliptic Curve Diffie-Hellman for secure key generation</p>
+                                </div>
+                            </div>
+                            <div class="security-item">
+                                <div class="security-icon">
+                                    <i class="fas fa-lock"></i>
+                                </div>
+                                <div class="security-text">
+                                    <h4>AES-256-GCM Encryption</h4>
+                                    <p>Military-grade symmetric encryption for all data</p>
+                                </div>
+                            </div>
+                            <div class="security-item">
+                                <div class="security-icon">
+                                    <i class="fas fa-file-encryption"></i>
+                                </div>
+                                <div class="security-text">
+                                    <h4>DTLS-SRTP</h4>
+                                    <p>WebRTC media streams secured with Datagram TLS</p>
+                                </div>
+                            </div>
+                            <div class="security-item">
+                                <div class="security-icon">
+                                    <i class="fas fa-history"></i>
+                                </div>
+                                <div class="security-text">
+                                    <h4>Complete Audit Trail</h4>
+                                    <p>Every access logged for compliance and transparency</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Doctors Section -->
+    <section id="doctors" class="doctors-section">
+        <div class="container">
+            <div class="section-header text-center">
+                <span class="section-tag">Expert Care</span>
+                <h2 class="section-title">Our Specialists</h2>
+                <p class="section-subtitle">Connect with certified healthcare professionals</p>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="doctor-card">
+                        <div class="doctor-avatar">
+                            <i class="fas fa-user-md"></i>
+                        </div>
+                        <h4>Dr. Rajesh Sharma</h4>
+                        <span class="doctor-specialty">General Medicine</span>
+                        <p>15+ years experience in treating common ailments and chronic conditions.</p>
+                        <div class="doctor-rating">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <span>4.9 (500+ consultations)</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="doctor-card">
+                        <div class="doctor-avatar">
+                            <i class="fas fa-user-md"></i>
+                        </div>
+                        <h4>Dr. Priya Patel</h4>
+                        <span class="doctor-specialty">Cardiology</span>
+                        <p>12+ years specialized in heart conditions and cardiovascular diseases.</p>
+                        <div class="doctor-rating">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <span>4.8 (300+ consultations)</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="doctor-card">
+                        <div class="doctor-avatar">
+                            <i class="fas fa-user-md"></i>
+                        </div>
+                        <h4>Dr. Amit Kumar</h4>
+                        <span class="doctor-specialty">Dermatology</span>
+                        <p>8+ years expertise in skin, hair, and nail conditions.</p>
+                        <div class="doctor-rating">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star-half-alt"></i>
+                            <span>4.7 (200+ consultations)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content text-center">
+                <h2>Ready to Experience Secure Healthcare?</h2>
+                <p>Join thousands of patients and doctors using MediLock for safe, private consultations.</p>
+                <div class="cta-buttons">
+                    <a href="register.html" class="btn btn-primary btn-lg">Create Free Account</a>
+                    <a href="login.html" class="btn btn-outline-light btn-lg">Login</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="footer-brand">
+                        <a href="index.html">
+                            <i class="fas fa-shield-alt"></i> MediLock
+                        </a>
+                        <p>Secure End-to-End Encrypted Video Consultation Platform for Indian Healthcare.</p>
+                    </div>
+                </div>
+                <div class="col-lg-2">
+                    <h5>Quick Links</h5>
+                    <ul class="footer-links">
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#security">Security</a></li>
+                        <li><a href="#doctors">Doctors</a></li>
+                        <li><a href="#about">About Us</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2">
+                    <h5>Legal</h5>
+                    <ul class="footer-links">
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">DPDP Compliance</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-4">
+                    <h5>Contact</h5>
+                    <div class="footer-contact">
+                        <p><i class="fas fa-envelope"></i> support@medilock.in</p>
+                        <p><i class="fas fa-phone"></i> +91-1800-XXX-XXXX</p>
+                        <p><i class="fas fa-map-marker-alt"></i> Mumbai, India</p>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 MediLock. All rights reserved. | Made with <i class="fas fa-heart"></i> in India</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

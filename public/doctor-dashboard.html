@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Dashboard - MediLock</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="index.html" class="sidebar-brand">
+                <i class="fas fa-shield-alt"></i> MediLock
+            </a>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="active">
+                <a href="doctor-dashboard.html">
+                    <i class="fas fa-home"></i> <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="showSection('appointments')">
+                    <i class="fas fa-calendar-alt"></i> <span>Appointments</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="showSection('patients')">
+                    <i class="fas fa-users"></i> <span>Patients</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="showSection('prescriptions')">
+                    <i class="fas fa-prescription"></i> <span>Prescriptions</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="showSection('schedule')">
+                    <i class="fas fa-clock"></i> <span>Schedule</span>
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="showSection('profile')">
+                    <i class="fas fa-user-cog"></i> <span>Profile</span>
+                </a>
+            </li>
+            <li class="logout">
+                <a href="#" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Header -->
+        <header class="top-header">
+            <button class="btn-toggle-sidebar" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="header-right">
+                <div class="header-status">
+                    <span class="status-indicator online"></span>
+                    <span>Available for Consultations</span>
+                </div>
+                <div class="notification-bell">
+                    <a href="#"><i class="fas fa-bell"></i><span class="badge">5</span></a>
+                </div>
+                <div class="user-profile">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%230D7377' viewBox='0 0 24 24'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="Doctor">
+                    <span id="userName">Loading...</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Content -->
+        <div class="dashboard-content">
+            <!-- Welcome Section -->
+            <div class="welcome-section">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h1>Welcome, <span id="welcomeName">Doctor</span>!</h1>
+                        <p>You have <strong id="todayCount">0</strong> appointments today</p>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <div class="btn-group">
+                            <button class="btn btn-success" id="availabilityBtn" onclick="toggleAvailability()">
+                                <i class="fas fa-toggle-on"></i> Available
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar-day"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="todayAppointments">0</h3>
+                            <p>Today's Appointments</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalPatients">0</h3>
+                            <p>Total Patients</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="rating">4.9</h3>
+                            <p>Rating</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Today's Schedule -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-calendar-alt"></i> Today's Schedule</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table" id="scheduleTable">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Patient</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleList">
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No appointments scheduled for today</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card quick-action-card">
+                        <div class="card-body">
+                            <div class="quick-action-icon video">
+                                <i class="fas fa-video"></i>
+                            </div>
+                            <h5>Start Consultation</h5>
+                            <p>Begin video call with your next patient</p>
+                            <button class="btn btn-primary" onclick="startConsultation()">
+                                Start Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card quick-action-card">
+                        <div class="card-body">
+                            <div class="quick-action-icon prescription">
+                                <i class="fas fa-prescription"></i>
+                            </div>
+                            <h5>Write Prescription</h5>
+                            <p>Create digital prescription for patient</p>
+                            <button class="btn btn-outline-primary" onclick="showSection('prescriptions')">
+                                Create Rx
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
