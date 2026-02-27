@@ -29,10 +29,11 @@ router.post('/', authenticate, [
     const { doctorId, appointmentDate, symptoms, durationMinutes = 30 } = req.body;
     
     // The 'appointmentDate' is an ISO string from the client.
-    // The mysql2 driver can handle the Date object directly and format it correctly for UTC.
+    // Force UTC string format to ensure consistency regardless of server timezone
     const jsDate = new Date(appointmentDate);
+    const utcDateStr = jsDate.toISOString().slice(0, 19).replace('T', ' ');
 
-    console.log('Creating appointment:', { doctorId, appointmentDate: jsDate, userId: req.user.id, role: req.user.role });
+    console.log('Creating appointment:', { doctorId, appointmentDate: utcDateStr, userId: req.user.id, role: req.user.role });
 
     // Get patient ID - Check both patients table and users table
     let patient = await db.getOne('SELECT id FROM patients WHERE user_id = ?', [req.user.id]);
@@ -66,7 +67,7 @@ router.post('/', authenticate, [
       `INSERT INTO appointments 
         (patient_id, doctor_id, appointment_date, duration_minutes, room_id, room_password, encryption_key_hash, symptoms) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [patient.id, doctorId, jsDate, durationMinutes, roomId, roomPassword, encryptionKeyHash, symptoms || null]
+      [patient.id, doctorId, utcDateStr, durationMinutes, roomId, roomPassword, encryptionKeyHash, symptoms || null]
     );
 
     // Get appointment details
@@ -178,8 +179,8 @@ router.get('/', authenticate, async (req, res) => {
     }
 
     if (upcoming === 'true') {
-      // Use UTC comparison to avoid timezone issues
-      sql += " AND a.appointment_date >= UTC_TIMESTAMP() AND a.status = 'scheduled'";
+      // Use UTC comparison, but allow appointments from the last 12 hours to ensure they don't disappear immediately
+      sql += " AND a.appointment_date >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 12 HOUR) AND a.status = 'scheduled'";
     }
 
     sql += ' ORDER BY a.appointment_date ASC';
@@ -296,7 +297,7 @@ router.put('/:id', authenticate, [
 
     if (appointmentDate) {
       updates.push('appointment_date = ?');
-      params.push(new Date(appointmentDate));
+      params.push(new Date(appointmentDate).toISOString().slice(0, 19).replace('T', ' '));
     }
 
     if (status) {
