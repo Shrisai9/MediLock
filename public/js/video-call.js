@@ -1,552 +1,295 @@
 /**
- * MediLock - Video Call JavaScript
- * Native WebRTC implementation using Socket.IO for signaling
+ * MediLock - Video Call Client
+ * Simplified and Robust WebRTC implementation
  */
 
-// Global variables
+// --- Global State ---
 let socket = null;
 let localStream = null;
-let encryptionManager = null;
 let roomId = null;
-let appointmentId = null;
-let callTimerInterval = null;
-let callDuration = 0;
+let peers = {}; // socketId -> RTCPeerConnection
+let iceQueue = {}; // socketId -> Array of candidates
 
-// WebRTC Configuration
+// --- Configuration ---
 const iceServers = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' }
+    { urls: 'stun:stun1.l.google.com:19302' }
   ]
 };
 
-// Store peer connections
-const peers = {}; // socketId -> RTCPeerConnection
-const iceCandidateQueue = {}; // socketId -> Array of candidates
-
-// Media constraints
-const mediaConstraints = {
-  video: {
-    width: { ideal: 1280 },
-    height: { ideal: 720 },
-    facingMode: 'user'
-  },
-  audio: {
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: true
+// --- Debug Logger ---
+function log(msg) {
+  console.log(`[VideoCall] ${msg}`);
+  const debugDiv = document.getElementById('debug-log');
+  if (debugDiv) {
+    const line = document.createElement('div');
+    line.textContent = `${new Date().toLocaleTimeString()} - ${msg}`;
+    debugDiv.appendChild(line);
+    debugDiv.scrollTop = debugDiv.scrollHeight;
   }
-};
+}
 
-// Ensure dependencies (Socket.IO)
-async function ensureDependencies() {
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!window.location.href.includes('consultation.html')) return;
+
+  // Create Debug UI
+  const debugContainer = document.createElement('div');
+  debugContainer.id = 'debug-log';
+  debugContainer.style.cssText = 'position:fixed; bottom:10px; left:10px; width:300px; height:150px; background:rgba(0,0,0,0.7); color:#0f0; font-size:10px; overflow-y:scroll; z-index:9999; pointer-events:none; padding:5px;';
+  document.body.appendChild(debugContainer);
+
+  log('Initializing...');
+
+  // 1. Get Room ID
+  const urlParams = new URLSearchParams(window.location.search);
+  const appointmentId = urlParams.get('appointmentId');
+  if (!appointmentId) {
+    alert('No appointment ID');
+    return;
+  }
+
+  try {
+    const res = await apiRequest(`/appointments/${appointmentId}`);
+    if (res.success) {
+      roomId = res.data.room_id;
+      document.getElementById('roomIdDisplay').textContent = roomId;
+      log(`Room ID: ${roomId}`);
+    }
+  } catch (e) {
+    log('Error fetching appointment details');
+  }
+
+  // 2. Load Socket.IO
   if (typeof io === 'undefined') {
-    console.log('Socket.IO not found, loading from CDN...');
-    await new Promise((resolve, reject) => {
+    log('Loading Socket.IO...');
+    await new Promise(resolve => {
       const script = document.createElement('script');
       script.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
       script.onload = resolve;
-      script.onerror = () => reject(new Error('Failed to load Socket.IO'));
       document.head.appendChild(script);
     });
   }
-}
 
-// Initialize
-async function initVideoCall() {
+  // 3. Get Local Media
   try {
-    console.log('Initializing video call...');
-
-    // WebRTC requires Secure Context (HTTPS or localhost)
-    if (!window.isSecureContext) {
-      showNotification('Video calls require HTTPS. Please use a secure connection.', 'danger');
-      console.error('WebRTC requires Secure Context');
-    }
-    
-    // Get appointment ID
-    const urlParams = new URLSearchParams(window.location.search);
-    appointmentId = urlParams.get('appointmentId');
-
-    if (!appointmentId) {
-      showNotification('No appointment ID provided', 'danger');
-      return;
-    }
-
-    // Fetch appointment details for Room ID
-    try {
-      const response = await apiRequest('/appointments/' + appointmentId);
-      if (response.success && response.data) {
-        roomId = response.data.room_id;
-        const roomIdDisplay = document.getElementById('roomIdDisplay');
-        if (roomIdDisplay) roomIdDisplay.textContent = roomId;
-      } else {
-        throw new Error('Invalid appointment data');
-      }
-    } catch (e) {
-      console.error('Error fetching appointment:', e);
-      showNotification('Failed to load appointment details', 'danger');
-      return;
-    }
-
-    // Initialize Encryption
-    if (typeof EncryptionManager !== 'undefined') {
-      encryptionManager = new EncryptionManager();
-      await encryptionManager.initialize();
-    }
-
-    // Load Socket.IO
-    await ensureDependencies();
-
-    // Get Local Stream
-    try {
-      await getLocalStream();
-    } catch (err) {
-      console.warn('Could not get local stream, proceeding to connect anyway:', err);
-    }
-
-    // Setup Preview
-    setupPreview();
-
-    // Show Setup Modal
-    const setupModalEl = document.getElementById('setupModal');
-    if (setupModalEl) {
-      // Prevent premature focus which causes ARIA warnings
-      const autoFocusElements = setupModalEl.querySelectorAll('[autofocus]');
-      autoFocusElements.forEach(el => {
-        el.removeAttribute('autofocus');
-        el.autofocus = false;
-      });
-
-      // Fix for ARIA warning: remove aria-hidden if present before showing
-      setupModalEl.removeAttribute('aria-hidden');
-
-      const setupModal = new bootstrap.Modal(setupModalEl);
-      setupModal.show();
-    }
-
-    // Connect Socket
-    await connectSocket();
-
-  } catch (error) {
-    console.error('Fatal error initializing video call:', error);
-    // Only show generic error if specific media error wasn't already shown
-    if (!['NotAllowedError', 'NotReadableError', 'TrackStartError', 'NotFoundError'].includes(error.name)) {
-      showNotification('Failed to initialize video call', 'danger');
-    }
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('localVideo').srcObject = localStream;
+    document.getElementById('setupPreview').srcObject = localStream;
+    log('Local media acquired');
+  } catch (e) {
+    log(`Media Error: ${e.name}`);
+    alert('Camera/Mic access failed. Please allow permissions.');
   }
-}
 
-// Get Local Stream
-async function getLocalStream() {
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+  // 4. Show Setup Modal
+  const setupModal = new bootstrap.Modal(document.getElementById('setupModal'));
+  setupModal.show();
+
+  // Remove autofocus to prevent ARIA warnings
+  document.querySelectorAll('[autofocus]').forEach(el => el.removeAttribute('autofocus'));
+});
+
+// --- Join Function ---
+window.joinConsultation = async function() {
+  log('Joining consultation...');
+  
+  // Hide modal
+  const modalEl = document.getElementById('setupModal');
+  const modal = bootstrap.Modal.getInstance(modalEl);
+  modal.hide();
+
+  // Connect Socket
+  socket = io();
+
+  socket.on('connect', () => {
+    log(`Socket connected: ${socket.id}`);
     
-    const localVideo = document.getElementById('localVideo');
-    if (localVideo) {
-      localVideo.srcObject = localStream;
-      localVideo.muted = true;
-      localVideo.setAttribute('playsinline', 'true');
-      await localVideo.play().catch(e => console.warn('Local video play error:', e));
-    }
-    return localStream;
-  } catch (error) {
-    console.error('Error accessing media devices:', error);
-    if (error.name === 'NotAllowedError') {
-        showNotification('Camera/Microphone permission denied', 'danger');
-    } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
-        showNotification('Camera is in use by another application or tab', 'danger');
-    } else if (error.name === 'NotFoundError') {
-        showNotification('No camera or microphone found', 'danger');
-    } else {
-        showNotification(`Media access error: ${error.message}`, 'danger');
-    }
-    throw error;
-  }
-}
-
-// Setup Preview (in modal)
-function setupPreview() {
-    const preview = document.getElementById('setupPreview');
-    if (localStream && preview) {
-        preview.srcObject = localStream;
-        preview.muted = true;
-        preview.play().catch(e => console.warn('Preview play error:', e));
-    }
-}
-
-// Connect Socket
-function connectSocket() {
-    return new Promise((resolve, reject) => {
-        socket = io();
-
-        socket.on('connect', () => {
-            console.log('Socket connected:', socket.id);
-            // Authenticate
-            const user = (typeof auth !== 'undefined' && auth.user) ? auth.user : { id: 'guest', role: 'guest' };
-            socket.emit('authenticate', {
-                userId: user.id,
-                userName: user.firstName || user.email || 'Guest',
-                role: user.role
-            });
-            resolve();
-        });
-
-        socket.on('room-joined', handleRoomJoined);
-        socket.on('user-joined', handleUserJoined);
-        socket.on('user-left', handleUserLeft);
-        socket.on('offer', handleOffer);
-        socket.on('answer', handleAnswer);
-        socket.on('ice-candidate', handleIceCandidate);
-        socket.on('chat-message', handleChatMessage);
-        socket.on('media-state-change', handleMediaStateChange);
-        socket.on('screen-share-start', () => showNotification('User started screen sharing', 'info'));
-        socket.on('screen-share-stop', () => showNotification('User stopped screen sharing', 'info'));
+    // Authenticate
+    const user = auth.user || { id: 'guest', role: 'guest' };
+    socket.emit('authenticate', {
+      userId: user.id,
+      userName: user.firstName || 'Guest',
+      role: user.role
     });
-}
 
-// Join Consultation (Called from Modal Button)
-function joinConsultation() {
-    if (!roomId) return;
-    
-    console.log('Joining room:', roomId);
-    const user = (typeof auth !== 'undefined' && auth.user) ? auth.user : { id: 'guest', role: 'guest' };
-    
+    // Join Room
     socket.emit('join-room', {
-        roomId: roomId,
-        userId: user.id,
-        userName: user.firstName || user.email,
-        role: user.role
+      roomId: roomId,
+      userId: user.id,
+      userName: user.firstName || 'Guest',
+      role: user.role
     });
+  });
 
-    // Hide modal
-    const setupModalEl = document.getElementById('setupModal');
-    if (setupModalEl) {
-        // Remove focus from button before hiding to prevent ARIA warning
-        const joinBtn = document.getElementById('joinBtn');
-        if (joinBtn) joinBtn.blur();
+  // --- Signaling Events ---
 
-        const modal = bootstrap.Modal.getInstance(setupModalEl);
-        if (modal) modal.hide();
-    }
-
-    startCallTimer();
-}
-
-// --- WebRTC Logic ---
-
-function createPeerConnection(targetSocketId) {
-    console.log('Creating RTCPeerConnection for:', targetSocketId);
+  // 1. Existing participants sent to newcomer
+  socket.on('room-joined', async (data) => {
+    log(`Joined room. Peers found: ${data.participants.length}`);
     
-    // Close existing connection if any to prevent state issues
-    if (peers[targetSocketId]) {
-        console.warn('Closing existing peer connection for', targetSocketId);
-        closePeerConnection(targetSocketId);
+    // We are the newcomer. We initiate calls to existing peers.
+    for (const p of data.participants) {
+      createPeerConnection(p.socketId, true); // true = initiator
     }
+  });
 
-    const pc = new RTCPeerConnection(iceServers);
-    peers[targetSocketId] = pc;
+  // 2. Newcomer joined (existing participants receive this)
+  socket.on('user-joined', (data) => {
+    log(`User joined: ${data.userName}`);
+    // We wait for them to offer.
+  });
 
-    // Add local tracks
-    if (localStream) {
-        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-    }
-
-    // ICE Candidates
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            socket.emit('ice-candidate', {
-                roomId,
-                targetSocketId,
-                candidate: event.candidate
-            });
-        }
-    };
-
-    // Remote Stream
-    pc.ontrack = (event) => {
-        console.log('Received remote track');
-        const remoteVideo = document.getElementById('remoteVideo');
-        if (remoteVideo && remoteVideo.srcObject !== event.streams[0]) {
-            remoteVideo.srcObject = event.streams[0];
-            remoteVideo.play().catch(e => console.warn('Remote play error:', e));
-            
-            // Hide waiting overlay
-            const waitingOverlay = document.getElementById('waitingOverlay');
-            if (waitingOverlay) waitingOverlay.style.display = 'none';
-        }
-    };
-
-    pc.onconnectionstatechange = () => {
-        console.log(`Connection state with ${targetSocketId}: ${pc.connectionState}`);
-        const state = pc.connectionState;
-        
-        if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-            closePeerConnection(targetSocketId);
-            showNotification(`Connection to peer ${state}`, 'warning');
-        } else if (pc.connectionState === 'connected') {
-            console.log('Peer connection established successfully');
-            // Ensure remote video is playing
-            const remoteVideo = document.getElementById('remoteVideo');
-            if (remoteVideo && remoteVideo.paused && remoteVideo.srcObject) {
-                remoteVideo.play().catch(e => console.warn('Resume remote video error:', e));
-            }
-        }
-    };
-
-    pc.oniceconnectionstatechange = () => {
-        console.log(`ICE connection state with ${targetSocketId}: ${pc.iceConnectionState}`);
-    };
-
-    return pc;
-}
-
-function closePeerConnection(socketId) {
-    if (peers[socketId]) {
-        peers[socketId].close();
-        delete peers[socketId];
-    }
-    if (iceCandidateQueue[socketId]) {
-        delete iceCandidateQueue[socketId];
-    }
-}
-
-// Helper to process queued ICE candidates
-async function processIceQueue(socketId, pc) {
-    if (iceCandidateQueue[socketId]) {
-        console.log(`Processing ${iceCandidateQueue[socketId].length} queued ICE candidates for ${socketId}`);
-        for (const candidate of iceCandidateQueue[socketId]) {
-            try {
-                await pc.addIceCandidate(new RTCIceCandidate(candidate));
-            } catch (e) {
-                console.error('Error adding queued ICE candidate:', e);
-            }
-        }
-        delete iceCandidateQueue[socketId];
-    }
-}
-
-// Handle: We joined the room, initiate calls to existing participants
-async function handleRoomJoined(data) {
-    console.log('Joined room. Participants:', data.participants);
+  // 3. Offer received
+  socket.on('offer', async (data) => {
+    log(`Received Offer from ${data.socketId}`);
+    const pc = createPeerConnection(data.socketId, false);
     
-    // data.participants is an array of user objects
-    for (const participant of data.participants) {
-        const pc = createPeerConnection(participant.socketId);
-        
-        // Create Offer
-        try {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            
-            socket.emit('offer', {
-                roomId,
-                targetSocketId: participant.socketId,
-                offer
-            });
-        } catch (e) {
-            console.error('Error creating offer:', e);
-        }
-    }
-}
-
-// Handle: Someone else joined, they will send us an offer
-function handleUserJoined(data) {
-    console.log('User joined:', data.userName);
-    showNotification(`${data.userName} joined the call`, 'info');
+    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
     
-    // Update waiting text to show connection is in progress
-    const waitingOverlay = document.getElementById('waitingOverlay');
-    if (waitingOverlay) {
-        const textEl = waitingOverlay.querySelector('h5, p, div');
-        if (textEl) textEl.textContent = `${data.userName} joined. Connecting...`;
-    }
-    // We wait for their offer
-}
-
-// Handle: Incoming Offer
-async function handleOffer(data) {
-    console.log('Received offer from:', data.socketId, 'Creating answer...');
+    socket.emit('answer', {
+      targetSocketId: data.socketId,
+      answer: answer
+    });
     
-    const pc = createPeerConnection(data.socketId);
-    
-    try {
-        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        
-        socket.emit('answer', {
-            roomId,
-            targetSocketId: data.socketId,
-            answer
-        });
+    processIceQueue(data.socketId);
+  });
 
-        // Process queued ICE candidates
-        await processIceQueue(data.socketId, pc);
-    } catch (e) {
-        console.error('Error handling offer:', e);
-    }
-}
-
-// Handle: Incoming Answer
-async function handleAnswer(data) {
-    console.log('Received answer from:', data.socketId, 'Setting remote description...');
+  // 4. Answer received
+  socket.on('answer', async (data) => {
+    log(`Received Answer from ${data.socketId}`);
     const pc = peers[data.socketId];
     if (pc) {
-        try {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-            
-            // Process queued ICE candidates
-            await processIceQueue(data.socketId, pc);
-        } catch (e) {
-            console.error('Error setting remote description (answer):', e);
-        }
+      await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+      processIceQueue(data.socketId);
     }
-}
+  });
 
-// Handle: Incoming ICE Candidate
-async function handleIceCandidate(data) {
+  // 5. ICE Candidate received
+  socket.on('ice-candidate', async (data) => {
     const pc = peers[data.socketId];
-    // Only add candidate if remote description is set
-    if (pc && pc.remoteDescription && pc.remoteDescription.type) {
-        try {
-            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-        } catch (e) {
-            console.error('Error adding ICE candidate:', e);
-        }
+    if (pc && pc.remoteDescription) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        log('Added ICE candidate');
+      } catch (e) {
+        log('Error adding ICE');
+      }
     } else {
-        // Queue candidate if PC doesn't exist or remote description not set
-        console.log('Queueing ICE candidate for:', data.socketId);
-        if (!iceCandidateQueue[data.socketId]) {
-            iceCandidateQueue[data.socketId] = [];
-        }
-        iceCandidateQueue[data.socketId].push(data.candidate);
+      log('Queuing ICE candidate');
+      if (!iceQueue[data.socketId]) iceQueue[data.socketId] = [];
+      iceQueue[data.socketId].push(data.candidate);
     }
-}
+  });
 
-// Handle: User Left
-function handleUserLeft(data) {
-    console.log('User left:', data.socketId);
-    closePeerConnection(data.socketId);
-    showNotification(`${data.userName || 'Participant'} left the call`, 'info');
-    
-    // If no peers left, show waiting
-    if (Object.keys(peers).length === 0) {
-        const waitingOverlay = document.getElementById('waitingOverlay');
-        if (waitingOverlay) waitingOverlay.style.display = 'flex';
-        const remoteVideo = document.getElementById('remoteVideo');
-        if (remoteVideo) remoteVideo.srcObject = null;
+  socket.on('user-left', (data) => {
+    log(`User left: ${data.userName}`);
+    if (peers[data.socketId]) {
+      peers[data.socketId].close();
+      delete peers[data.socketId];
     }
-}
+    document.getElementById('remoteVideo').srcObject = null;
+    document.getElementById('waitingOverlay').style.display = 'flex';
+  });
 
-// --- Utilities ---
-
-function startCallTimer() {
-    callTimerInterval = setInterval(() => {
-        callDuration++;
-        const minutes = Math.floor(callDuration / 60);
-        const seconds = callDuration % 60;
-        const timerElement = document.getElementById('callTimer');
-        if (timerElement) {
-            timerElement.querySelector('span').textContent = 
-                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
-    }, 1000);
-}
-
-function toggleMute() {
-    if (localStream) {
-        const audioTrack = localStream.getAudioTracks()[0];
-        if (audioTrack) {
-            audioTrack.enabled = !audioTrack.enabled;
-            const btn = document.getElementById('muteBtn');
-            if (btn) {
-                btn.classList.toggle('active', !audioTrack.enabled);
-                btn.querySelector('i').className = audioTrack.enabled ? 'fas fa-microphone' : 'fas fa-microphone-slash';
-            }
-            socket.emit('media-state-change', { roomId, audioEnabled: audioTrack.enabled, videoEnabled: localStream.getVideoTracks()[0]?.enabled });
-        }
-    }
-}
-
-function toggleVideo() {
-    if (localStream) {
-        const videoTrack = localStream.getVideoTracks()[0];
-        if (videoTrack) {
-            videoTrack.enabled = !videoTrack.enabled;
-            const btn = document.getElementById('videoBtn');
-            if (btn) {
-                btn.classList.toggle('active', !videoTrack.enabled);
-                btn.querySelector('i').className = videoTrack.enabled ? 'fas fa-video' : 'fas fa-video-slash';
-            }
-            socket.emit('media-state-change', { roomId, audioEnabled: localStream.getAudioTracks()[0]?.enabled, videoEnabled: videoTrack.enabled });
-        }
-    }
-}
-
-function endCall() {
-    if (confirm('End call?')) {
-        if (localStream) localStream.getTracks().forEach(t => t.stop());
-        Object.keys(peers).forEach(id => closePeerConnection(id));
-        if (socket) socket.disconnect();
-        if (callTimerInterval) clearInterval(callTimerInterval);
-        window.location.href = auth.user.role === 'doctor' ? 'doctor-dashboard.html' : 'patient-dashboard.html';
-    }
-}
-
-// Chat functions
-async function sendChatMessage() {
-    const input = document.getElementById('chatInput');
-    const msg = input.value.trim();
-    if (!msg) return;
-    
-    // Simple send for now
-    socket.emit('chat-message', {
-        roomId,
-        message: msg,
-        encrypted: false
-    });
-    
-    displayChatMessage({ userName: 'You', message: msg, socketId: socket.id });
-    input.value = '';
-}
-
-function handleChatMessage(data) {
-    displayChatMessage(data);
-}
-
-function displayChatMessage(data) {
-    const container = document.getElementById('chatMessages');
-    if (!container) return;
-    const isSelf = data.socketId === socket.id;
+  // Chat
+  socket.on('chat-message', (data) => {
     const div = document.createElement('div');
-    div.className = `chat-message ${isSelf ? 'self' : ''}`;
-    div.innerHTML = `<div class="message-content"><small>${data.userName}</small><div>${data.message}</div></div>`;
-    container.appendChild(div);
-    container.scrollTop = container.scrollHeight;
-}
+    div.className = `chat-message ${data.socketId === socket.id ? 'self' : ''}`;
+    div.innerHTML = `<small>${data.userName}</small><div>${data.message}</div>`;
+    document.getElementById('chatMessages').appendChild(div);
+  });
+};
 
-function handleMediaStateChange(data) {
-    console.log('Media state:', data);
-    // Could update UI indicators for remote user mute status here
-}
+// --- WebRTC Core ---
 
-// Initialize
-if (window.location.href.includes('consultation.html')) {
-    document.addEventListener('DOMContentLoaded', initVideoCall);
-}
+function createPeerConnection(targetSocketId, isInitiator) {
+  log(`Creating PC for ${targetSocketId} (Initiator: ${isInitiator})`);
+  
+  const pc = new RTCPeerConnection(iceServers);
+  peers[targetSocketId] = pc;
 
-// Expose
-window.joinConsultation = joinConsultation;
-window.toggleMute = toggleMute;
-window.toggleVideo = toggleVideo;
-window.endCall = endCall;
-window.sendChatMessage = sendChatMessage;
-window.toggleSetupVideo = function() {
-    if (localStream) {
-        const videoTrack = localStream.getVideoTracks()[0];
-        if (videoTrack) videoTrack.enabled = !videoTrack.enabled;
+  // Add local tracks
+  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+  // Handle ICE
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      socket.emit('ice-candidate', {
+        targetSocketId: targetSocketId,
+        candidate: event.candidate
+      });
     }
+  };
+
+  // Handle Remote Stream
+  pc.ontrack = (event) => {
+    log('Received Remote Stream');
+    const vid = document.getElementById('remoteVideo');
+    if (vid.srcObject !== event.streams[0]) {
+      vid.srcObject = event.streams[0];
+      document.getElementById('waitingOverlay').style.display = 'none';
+    }
+  };
+
+  // Connection State
+  pc.onconnectionstatechange = () => {
+    log(`PC State: ${pc.connectionState}`);
+  };
+
+  // If initiator, create offer
+  if (isInitiator) {
+    pc.createOffer()
+      .then(offer => pc.setLocalDescription(offer))
+      .then(() => {
+        socket.emit('offer', {
+          targetSocketId: targetSocketId,
+          offer: pc.localDescription
+        });
+      })
+      .catch(e => log(`Offer Error: ${e}`));
+  }
+
+  return pc;
+}
+
+async function processIceQueue(socketId) {
+  const pc = peers[socketId];
+  if (iceQueue[socketId] && pc) {
+    log(`Processing ${iceQueue[socketId].length} queued ICEs`);
+    for (const c of iceQueue[socketId]) {
+      await pc.addIceCandidate(new RTCIceCandidate(c));
+    }
+    delete iceQueue[socketId];
+  }
+}
+
+// --- UI Utilities ---
+window.toggleMute = function() {
+  const track = localStream.getAudioTracks()[0];
+  track.enabled = !track.enabled;
+  document.getElementById('muteBtn').classList.toggle('active', !track.enabled);
+};
+
+window.toggleVideo = function() {
+  const track = localStream.getVideoTracks()[0];
+  track.enabled = !track.enabled;
+  document.getElementById('videoBtn').classList.toggle('active', !track.enabled);
+};
+
+window.endCall = function() {
+  if (confirm('End call?')) {
+    window.location.href = auth.user.role === 'doctor' ? 'doctor-dashboard.html' : 'patient-dashboard.html';
+  }
+};
+
+window.sendChatMessage = function() {
+  const input = document.getElementById('chatInput');
+  if (input.value.trim()) {
+    socket.emit('chat-message', { message: input.value });
+    input.value = '';
+  }
 };

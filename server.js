@@ -126,7 +126,8 @@ const io = new Server(server, {
   serveClient: false, // Disable auto-serving to prevent conflicts with our manual route
   transports: ['websocket', 'polling'],
   pingTimeout: 60000,
-  pingInterval: 25000
+  pingInterval: 25000,
+  allowEIO3: true // Compatibility
 });
 
 // Setup socket event handlers
