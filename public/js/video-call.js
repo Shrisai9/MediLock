@@ -132,6 +132,12 @@ async function getLocalStream() {
     console.error('Error accessing media devices:', error);
     if (error.name === 'NotAllowedError') {
         showNotification('Camera/Microphone permission denied', 'danger');
+    } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        showNotification('Camera is in use by another application or tab', 'danger');
+    } else if (error.name === 'NotFoundError') {
+        showNotification('No camera or microphone found', 'danger');
+    } else {
+        showNotification(`Media access error: ${error.message}`, 'danger');
     }
     throw error;
   }
