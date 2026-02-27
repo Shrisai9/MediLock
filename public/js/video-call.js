@@ -113,6 +113,10 @@ async function initVideoCall() {
     // Show Setup Modal
     const setupModalEl = document.getElementById('setupModal');
     if (setupModalEl) {
+      // Prevent premature focus which causes ARIA warnings
+      const autoFocusElements = setupModalEl.querySelectorAll('[autofocus]');
+      autoFocusElements.forEach(el => el.removeAttribute('autofocus'));
+
       // Fix for ARIA warning: remove aria-hidden if present before showing
       setupModalEl.removeAttribute('aria-hidden');
 
