@@ -106,7 +106,7 @@ async function initVideoCall() {
       };
     }
     
-    // Ensure Socket.IO is loaded
+    // Ensure Socket.IO and PeerJS are loaded
     await ensureDependencies();
 
     // 1. Get local media stream FIRST (so user sees camera immediately)
