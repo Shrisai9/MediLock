@@ -105,9 +105,19 @@ async function initVideoCall() {
     const roomIdDisplay = document.getElementById('roomIdDisplay');
     if (roomIdDisplay) roomIdDisplay.textContent = roomId;
     
-    // Initialize encryption
-    encryptionManager = new EncryptionManager();
-    await encryptionManager.initialize();
+    // Initialize encryption (with fallback)
+    if (typeof EncryptionManager !== 'undefined') {
+      encryptionManager = new EncryptionManager();
+      await encryptionManager.initialize();
+    } else {
+      console.warn('EncryptionManager not loaded. Using unencrypted fallback.');
+      encryptionManager = {
+        initialize: async () => {},
+        encrypt: async (data) => data,
+        decrypt: async (data) => data,
+        getPublicKey: async () => 'mock-key'
+      };
+    }
     
     // Ensure Socket.IO and PeerJS are loaded
     await ensureDependencies();
@@ -117,7 +127,13 @@ async function initVideoCall() {
       await getLocalStream();
     } catch (err) {
       console.error('Failed to get local stream:', err);
-      showNotification('Camera/Microphone access failed. Please check permissions.', 'warning');
+      if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        showNotification('Camera is in use by another application or tab.', 'danger');
+      } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        showNotification('Camera permission denied. Please allow access in your browser settings.', 'danger');
+      } else {
+        showNotification('Camera access failed: ' + err.message, 'warning');
+      }
     }
     
     // 2. Setup preview
