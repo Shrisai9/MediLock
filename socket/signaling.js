@@ -40,7 +40,7 @@ const setupSocketHandlers = (io) => {
         userSockets.set(socket.id, { ...existingInfo, userId, userName, role, roomId });
 
         // Join socket room
-        socket.join(roomId);
+        await socket.join(roomId);
 
         // Initialize room if not exists
         if (!rooms.has(roomId)) {

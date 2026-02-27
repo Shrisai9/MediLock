@@ -59,6 +59,12 @@ async function ensureDependencies() {
 async function initVideoCall() {
   try {
     console.log('Initializing video call...');
+
+    // WebRTC requires Secure Context (HTTPS or localhost)
+    if (!window.isSecureContext) {
+      showNotification('Video calls require HTTPS. Please use a secure connection.', 'danger');
+      console.error('WebRTC requires Secure Context');
+    }
     
     // Get appointment ID
     const urlParams = new URLSearchParams(window.location.search);
@@ -260,10 +266,24 @@ function createPeerConnection(targetSocketId) {
     };
 
     pc.onconnectionstatechange = () => {
-        console.log(`Connection state with ${targetSocketId}:`, pc.connectionState);
+        console.log(`Connection state with ${targetSocketId}: ${pc.connectionState}`);
+        const state = pc.connectionState;
+        
         if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
             closePeerConnection(targetSocketId);
+            showNotification(`Connection to peer ${state}`, 'warning');
+        } else if (pc.connectionState === 'connected') {
+            console.log('Peer connection established successfully');
+            // Ensure remote video is playing
+            const remoteVideo = document.getElementById('remoteVideo');
+            if (remoteVideo && remoteVideo.paused && remoteVideo.srcObject) {
+                remoteVideo.play().catch(e => console.warn('Resume remote video error:', e));
+            }
         }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+        console.log(`ICE connection state with ${targetSocketId}: ${pc.iceConnectionState}`);
     };
 
     return pc;
@@ -334,7 +354,7 @@ function handleUserJoined(data) {
 
 // Handle: Incoming Offer
 async function handleOffer(data) {
-    console.log('Received offer from:', data.socketId);
+    console.log('Received offer from:', data.socketId, 'Creating answer...');
     
     const pc = createPeerConnection(data.socketId);
     
@@ -358,7 +378,7 @@ async function handleOffer(data) {
 
 // Handle: Incoming Answer
 async function handleAnswer(data) {
-    console.log('Received answer from:', data.socketId);
+    console.log('Received answer from:', data.socketId, 'Setting remote description...');
     const pc = peers[data.socketId];
     if (pc) {
         try {
