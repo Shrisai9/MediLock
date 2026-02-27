@@ -25,6 +25,7 @@ const iceServers = {
 
 // Store peer connections
 const peers = {}; // socketId -> RTCPeerConnection
+const iceCandidateQueue = {}; // socketId -> Array of candidates
 
 // Media constraints
 const mediaConstraints = {
@@ -215,6 +216,12 @@ function joinConsultation() {
 function createPeerConnection(targetSocketId) {
     console.log('Creating RTCPeerConnection for:', targetSocketId);
     
+    // Close existing connection if any to prevent state issues
+    if (peers[targetSocketId]) {
+        console.warn('Closing existing peer connection for', targetSocketId);
+        closePeerConnection(targetSocketId);
+    }
+
     const pc = new RTCPeerConnection(iceServers);
     peers[targetSocketId] = pc;
 
@@ -262,6 +269,24 @@ function closePeerConnection(socketId) {
     if (peers[socketId]) {
         peers[socketId].close();
         delete peers[socketId];
+    }
+    if (iceCandidateQueue[socketId]) {
+        delete iceCandidateQueue[socketId];
+    }
+}
+
+// Helper to process queued ICE candidates
+async function processIceQueue(socketId, pc) {
+    if (iceCandidateQueue[socketId]) {
+        console.log(`Processing ${iceCandidateQueue[socketId].length} queued ICE candidates for ${socketId}`);
+        for (const candidate of iceCandidateQueue[socketId]) {
+            try {
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (e) {
+                console.error('Error adding queued ICE candidate:', e);
+            }
+        }
+        delete iceCandidateQueue[socketId];
     }
 }
 
@@ -312,6 +337,9 @@ async function handleOffer(data) {
             targetSocketId: data.socketId,
             answer
         });
+
+        // Process queued ICE candidates
+        await processIceQueue(data.socketId, pc);
     } catch (e) {
         console.error('Error handling offer:', e);
     }
@@ -324,6 +352,9 @@ async function handleAnswer(data) {
     if (pc) {
         try {
             await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            
+            // Process queued ICE candidates
+            await processIceQueue(data.socketId, pc);
         } catch (e) {
             console.error('Error setting remote description (answer):', e);
         }
@@ -333,12 +364,20 @@ async function handleAnswer(data) {
 // Handle: Incoming ICE Candidate
 async function handleIceCandidate(data) {
     const pc = peers[data.socketId];
-    if (pc) {
+    // Only add candidate if remote description is set
+    if (pc && pc.remoteDescription && pc.remoteDescription.type) {
         try {
             await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
         } catch (e) {
             console.error('Error adding ICE candidate:', e);
         }
+    } else {
+        // Queue candidate if PC doesn't exist or remote description not set
+        console.log('Queueing ICE candidate for:', data.socketId);
+        if (!iceCandidateQueue[data.socketId]) {
+            iceCandidateQueue[data.socketId] = [];
+        }
+        iceCandidateQueue[data.socketId].push(data.candidate);
     }
 }
 
