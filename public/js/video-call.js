@@ -123,6 +123,9 @@ async function initVideoCall() {
       }
     }
     
+    // 2. Setup preview
+    setupPreview();
+    
     // 3. Show setup modal
     const setupModalEl = document.getElementById('setupModal');
     if (setupModalEl) {
@@ -239,8 +242,13 @@ async function joinConsultation() {
   try {
     console.log('Joining consultation, room:', roomId);
     
-    // Blur the button to prevent aria-hidden warning
-    if (document.activeElement) document.activeElement.blur();
+    // Join room via socket
+    socket.emit('join-room', {
+      roomId: roomId,
+      userId: auth.user.id,
+      userName: auth.user.firstName || auth.user.email,
+      role: auth.user.role
+    });
     
     // Update UI
     document.getElementById('roomIdDisplay').textContent = roomId;
@@ -258,26 +266,6 @@ async function joinConsultation() {
   } catch (error) {
     console.error('Error joining consultation:', error);
     showNotification('Failed to join consultation', 'danger');
-  }
-}
-
-// Handle room joined - when WE join and there are others in the room
-async function handleRoomJoined(data) {
-  console.log('Room joined, participants:', data.participants);
-  
-  // Exchange encryption keys
-  if (encryptionManager) {
-    await encryptionManager.getPublicKey();
-  }
-  
-  // If there are participants, create call to each
-  if (data.participants && data.participants.length > 0) {
-    for (const participant of data.participants) {
-      console.log('Initiating connection to:', participant.userName);
-      createPeerConnection(participant.socketId, true); // true = initiator
-    }
-  } else {
-    console.log('No participants in room yet, waiting...');
   }
 }
 
@@ -343,6 +331,24 @@ function createPeerConnection(targetSocketId, isInitiator) {
   }
 
   return pc;
+}
+
+// Handle room joined - when WE join and there are others in the room
+async function handleRoomJoined(data) {
+  console.log('Room joined, participants:', data.participants);
+  
+  // Exchange encryption keys
+  const myPublicKey = await encryptionManager.getPublicKey();
+  
+  // If there are participants, create call to each
+  if (data.participants && data.participants.length > 0) {
+    for (const participant of data.participants) {
+      console.log('Initiating connection to:', participant.userName);
+      createPeerConnection(participant.socketId, true); // true = initiator
+    }
+  } else {
+    console.log('No participants in room yet, waiting...');
+  }
 }
 
 // Handle user joined - when SOMEONE ELSE joins the room
